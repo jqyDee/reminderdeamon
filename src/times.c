@@ -4,6 +4,18 @@
 
 #include "log.h"
 
+static int check_if_leap_year(unsigned year) {
+  if (year % 4 == 0) {
+    if (year % 100 != 0) {
+      return 1;
+    }
+    if (year % 400 == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
 date_t get_current_time_as_date_t(void) {
   time_t rawtime;
   struct tm *timeinfo;
@@ -18,7 +30,7 @@ date_t get_current_time_as_date_t(void) {
                       .minute = timeinfo->tm_min,
                       .weekday = timeinfo->tm_wday};
 
-  log("current time: %s\n", asctime(timeinfo));
+  log("current time: %s", asctime(timeinfo));
 
   return curr_time;
 }
@@ -76,7 +88,9 @@ static char *get_month(month_t month) {
 }
 
 weekday_t calculate_weekday(unsigned y, unsigned m, unsigned d) {
-  return (weekday_t)((d += m < 3 ? y-- : y - 2, 23*m/9 + d + 4 + y/4- y/100 + y/400)%7);
+  return (weekday_t)((d += m < 3 ? y-- : y - 2,
+                      23 * m / 9 + d + 4 + y / 4 - y / 100 + y / 400) %
+                     7);
 }
 
 int print_alert(date_t date) {
@@ -86,7 +100,7 @@ int print_alert(date_t date) {
     return 1;
   }
 
-  printf("[%u-%02d-%02u: %02u:%02u; %s]", date.year, date.month, date.day,
+  printf("[%u-%02d-%02u: %02u:%02u; %s]", date.year, date.month + 1, date.day,
          date.hour, date.minute, weekday_str);
   return 0;
 }
@@ -104,7 +118,7 @@ int print_date(date_t date) {
   }
 
 #ifdef DEBUG
-  printf("[%u-%d-%u: %02u:%02u; %s]\n", date.year, date.month, date.day,
+  printf("[%u-%d-%u: %02u:%02u; %s]\n", date.year, date.month + 1, date.day,
          date.hour, date.minute, weekday_str);
 #endif
 
@@ -131,4 +145,131 @@ int print_date(date_t date) {
     return 1;
   }
   return 0;
+}
+
+static unsigned short month_lookup[12] = {
+    31, // JAN
+    28, // FEB
+    31, // MAR
+    30, // APR
+    31, // MAI
+    30, // JUN
+    31, // JUL
+    31, // AUG
+    30, // SEP
+    31, // OCT
+    30, // NOV
+    31, // DEC
+};
+
+static int calculate_abs_days(const unsigned short day, const month_t month,
+                              const unsigned year) {
+  unsigned sum = day;
+  for (month_t i = 0; i < month; i++) {
+    if (i == 1 && check_if_leap_year(year)) {
+      sum++;
+    }
+    sum += month_lookup[i];
+  }
+
+  return sum;
+}
+
+static month_t calculate_month(const unsigned abs_days, const unsigned year) {
+  size_t index = 0;
+  int days_from_start_of_month_i = abs_days;
+  while (abs_days > 28) {
+    days_from_start_of_month_i -= month_lookup[index];
+
+    // check if leapyear
+    if (index == 1 && check_if_leap_year(year)) {
+      days_from_start_of_month_i--;
+    }
+
+    if (days_from_start_of_month_i <= 0) {
+      break;
+    }
+
+    index++;
+  }
+  return index;
+}
+
+static unsigned short calculate_day_of_month(const unsigned abs_days,
+                                             const month_t month,
+                                             const unsigned year) {
+  int days_from_start_of_month_i = abs_days;
+
+  for (size_t i = 0; i <= month; i++) {
+    days_from_start_of_month_i -= month_lookup[i];
+
+    // leapyear -> FEB 29 days
+    if (i == 1 && check_if_leap_year(year)) {
+      days_from_start_of_month_i--;
+    }
+
+    if (days_from_start_of_month_i <= 0) {
+      days_from_start_of_month_i += month_lookup[i];
+
+      // leapyear -> FEB 29 days
+      if (i == 1 && check_if_leap_year(year)) {
+        days_from_start_of_month_i++;
+      }
+
+      break;
+    }
+  }
+
+  return days_from_start_of_month_i;
+}
+
+date_t create_date_from_offset(const date_t date_source,
+                               const unsigned offset) {
+  unsigned abs_days =
+      calculate_abs_days(date_source.day, date_source.month, date_source.year);
+
+  unsigned hours_offset = offset;
+  unsigned days_offset = 0;
+  unsigned years_offset = 0;
+
+  unsigned buffer = 0;
+
+  // translate hour offset to hour, day and year offset
+  if (hours_offset >= 24) {
+    buffer = hours_offset % 24;
+    days_offset = (hours_offset - buffer) / 24;
+    hours_offset = buffer;
+    if (days_offset >= 365) {
+      buffer = days_offset % 365;
+      years_offset = (days_offset - buffer) / 365;
+      days_offset = buffer;
+    }
+  }
+
+  date_t new_date = {
+      .minute = date_source.minute,
+  };
+
+  if ((int)(date_source.hour - hours_offset) < 0) {
+    new_date.hour = 24 + (int)(date_source.hour - hours_offset);
+    days_offset++;
+  }
+
+  // day offset goes over year edge
+  if ((int)(abs_days - days_offset) <= 0) {
+    abs_days = 365 - abs((int)(abs_days - days_offset));
+    years_offset++;
+  } else {
+    abs_days -= days_offset;
+  }
+
+  new_date.year = date_source.year - years_offset;
+
+  new_date.month = calculate_month(abs_days, new_date.year);
+  new_date.day =
+      calculate_day_of_month(abs_days, new_date.month, new_date.year);
+  new_date.weekday =
+      calculate_weekday(new_date.year, new_date.month, new_date.day);
+
+  return new_date;
 }

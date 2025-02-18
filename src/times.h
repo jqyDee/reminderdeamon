@@ -40,5 +40,9 @@ weekday_t calculate_weekday(unsigned y, unsigned m, unsigned d);
 
 date_t get_current_time_as_date_t(void);
 
+date_t create_date_from_offset(const date_t date_source,
+                               const unsigned offset);
+
 int print_date(date_t date);
+
 int print_alert(date_t date);

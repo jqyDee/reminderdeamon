@@ -22,36 +22,10 @@ reminder_t create_reminder(date_t reminder_date, unsigned alerts[MAX_ALERTS],
       .alerts_num = alerts_num,
   };
 
-  // TODO: Move in times.c and fix issue with hours getting lower than 0
   for (size_t i = 0; i < alerts_num; i++) {
-    log("i = %zu; alerts[i] = %u\n", alerts_num, alerts[i]);
-    unsigned hours_before_reminder = alerts[i];
-    unsigned days_before_reminder = 0;
-    unsigned years_before_reminder = 0;
-
-    unsigned buffer = 0;
-    // check if more than 24
-    if (hours_before_reminder >= 24) {
-      buffer = hours_before_reminder % 24;
-      days_before_reminder = (hours_before_reminder - buffer) / 24;
-      hours_before_reminder = buffer;
-      // check if more than 365 days
-      if (days_before_reminder >= 365) {
-        buffer = days_before_reminder % 365;
-        years_before_reminder = (days_before_reminder - buffer) / 24;
-        days_before_reminder = buffer;
-      }
-    }
-
-    date_t new_date = reminder_date;
-    new_date.year = new_date.year - years_before_reminder;
-    // TODO: new_date.month = new_date.month - years_before_reminder;
-    new_date.day = new_date.day - days_before_reminder;
-    new_date.hour = new_date.hour - hours_before_reminder;
-    new_rem.alerts[i] = new_date;
-    print_alert(new_date);
-    printf("\n");
+    new_rem.alerts[i] = create_date_from_offset(reminder_date, alerts[i]);
   }
+
   return new_rem;
 }
 
@@ -72,14 +46,15 @@ int print_reminder(reminder_t *reminder) {
   printf("Label: %s\n", reminder->label);
   printf("Note: %s\n", reminder->note);
 
-  printf("\nAlerts: ");
+  printf("\nAlerts: \n");
   for (size_t i = 1; i <= reminder->alerts_num; i++) {
+    printf("  -  ");
     if (print_alert(reminder->alerts[i - 1])) {
       return 1;
     }
 
     if (i != reminder->alerts_num) {
-      printf(", ");
+      printf(",\n");
     }
   }
   printf("\n");
@@ -96,29 +71,20 @@ int print_reminder(reminder_t *reminder) {
 }
 
 int main(void) {
-  FILE *storagefile_fd = open_storage_file();
-  if (!storagefile_fd) {
-    return 1;
-  }
-
-  if (close_storage_file(storagefile_fd)) {
-    return 1;
-  }
-
   date_t reminder_date = {
       .year = 2004,
-      .month = 1,
+      .month = JAN,
       .day = 1,
-      .weekday = calculate_weekday(2004, 1, 1),
-      .hour = 1,
+      .weekday = calculate_weekday(2004, JAN, 1),
+      .hour = 0,
       .minute = 1,
   };
 
   size_t alerts_num = 3;
-  unsigned alerts[3] = {2, 4, 6};
+  unsigned alerts[3] = {24, 48, 72};
 
-  reminder_t reminder = create_reminder(reminder_date, alerts, alerts_num, "My Brithday",
-                                        "I was born there");
+  reminder_t reminder = create_reminder(reminder_date, alerts, alerts_num,
+                                        "My Brithday", "I was born there");
 
   print_reminder(&reminder);
 
