@@ -2,6 +2,8 @@
 
 #include <stdlib.h>
 
+#define DATE_STRING_LENGTH 64
+
 typedef enum month_e {
   JAN,
   FEB,
@@ -46,3 +48,7 @@ date_t create_date_from_offset(const date_t date_source,
 int print_date(date_t date);
 
 int print_alert(date_t date);
+
+char *create_string_from_date(date_t date);
+
+weekday_t string_to_weekday(char *string);

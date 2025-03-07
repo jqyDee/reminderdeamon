@@ -88,5 +88,22 @@ int main(void) {
 
   print_reminder(&reminder);
 
+  FILE *fd = open_storage_file();
+  if (!fd) {
+    return 1;
+  }
+
+  reminder_t reminder_read = {0};
+  append_reminder_to_storage_file(fd, &reminder);
+  read_reminder_from_storage_file(fd, &reminder_read);
+  print_reminder(&reminder_read);
+
+  free(reminder_read.note);
+  free(reminder_read.label);
+
+  if (close_storage_file(fd)) {
+    return 1;
+  }
+
   return 0;
 }

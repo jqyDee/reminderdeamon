@@ -1,5 +1,6 @@
 #include "times.h"
 
+#include <string.h>
 #include <time.h>
 
 #include "log.h"
@@ -223,6 +224,7 @@ static unsigned short calculate_day_of_month(const unsigned abs_days,
   return days_from_start_of_month_i;
 }
 
+// TODO: Implement so it is not only possible to subtract but add to date
 date_t create_date_from_offset(const date_t date_source,
                                const unsigned offset) {
   unsigned abs_days =
@@ -272,4 +274,46 @@ date_t create_date_from_offset(const date_t date_source,
       calculate_weekday(new_date.year, new_date.month, new_date.day);
 
   return new_date;
+}
+
+char *create_string_from_date(date_t date) {
+  char *string = malloc(sizeof(char) * DATE_STRING_LENGTH + 1);
+
+  char *weekday_str = get_weekday(date.weekday);
+  if (!weekday_str) {
+    fprintf(stderr, "ERROR: weekday isn't correct\n");
+    return NULL;
+  }
+
+  snprintf(string, DATE_STRING_LENGTH, "%u-%02d-%02u: %02u:%02u; %s",
+           date.year, date.month, date.day, date.hour, date.minute,
+           weekday_str);
+
+  return string;
+}
+
+weekday_t string_to_weekday(char *string) {
+  if (strcmp(string, "Sunday") == 0) {
+    return SUN;
+  }
+  if (strcmp(string, "Monday") == 0) {
+    return MON;
+  }
+  if (strcmp(string, "Tuesday") == 0) {
+    return TUE;
+  }
+  if (strcmp(string, "Wednesday") == 0) {
+    return WED;
+  }
+  if (strcmp(string, "Thursday") == 0) {
+    return THU;
+  }
+  if (strcmp(string, "Friday") == 0) {
+    return FRI;
+  }
+  if (strcmp(string, "Saturday") == 0) {
+    return SAT;
+  }
+
+  return MON;
 }
